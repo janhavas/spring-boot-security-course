@@ -16,26 +16,27 @@ public class StudentManagementController {
             new Student(3, "Jamila Kubalovicowska")
     );
     @GetMapping
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_ADMINTRAINEE')")
+    //TODO: Treba osefovat Admin pristup (chyba: da sa pristupit aj cez uzivatela)
+    //@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_ADMINTRAINEE')")
     public static List<Student> getAllStudents() {
         return STUDENTS;
     }
     @PostMapping
-    @PreAuthorize("hasAuthority('student:write')")
+   // @PreAuthorize("hasAuthority('student:write')")
     public void registerNewStudents(@RequestBody Student student){
 
         System.out.println("registerNewStudents");
         System.out.println(student);
     }
     @DeleteMapping(path = "{studentID}")
-    @PreAuthorize("hasAuthority('student:write')")
+   // @PreAuthorize("hasAuthority('student:write')")
     public void deleteStudent(@PathVariable("studentID") Integer studentId){
 
         System.out.println("deleteStudent");
         System.out.println(studentId);
     }
     @PutMapping(path = "{studentID}")
-    @PreAuthorize("hasAuthority('student:write')")
+   // @PreAuthorize("hasAuthority('student:write')")
     public void updateStudent(@PathVariable("studentID") Integer studentId, @RequestBody Student student){
         System.out.println("updateStudent");
         System.out.printf("%s %s", studentId, student);
