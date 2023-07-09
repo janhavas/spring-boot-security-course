@@ -1,24 +1,19 @@
 package com.example.demo.security;
 
+import com.example.demo.auth.ApplicationUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.concurrent.TimeUnit;
@@ -34,9 +29,12 @@ import static jakarta.servlet.DispatcherType.FORWARD;
 public class ApplicationSecurityConfig {
 
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationUserService applicationUserService;
 
-    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder) {
+    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder, ApplicationUserService applicationUserService) {
         this.passwordEncoder = passwordEncoder;
+        this.applicationUserService = applicationUserService;
+
     }
 
     @Bean
@@ -55,8 +53,8 @@ public class ApplicationSecurityConfig {
                         // TODO: treba osefovat Admin pristup na manazment (chyba: da sa prihlasit aj cez uzivatela)
 //                        .requestMatchers("/management/api/**").hasAnyRole(ADMIN.name(), ADMINTRAINEE.name()))
 
-                 .anyRequest()
-                 .authenticated())
+                        .anyRequest()
+                        .authenticated())
 
                 //.httpBasic(Customizer.withDefaults()); //Basic Authentication
                 //Form Based Authentication
@@ -68,11 +66,11 @@ public class ApplicationSecurityConfig {
                         .usernameParameter("username"))
                 .rememberMe((remember) -> remember
                         .rememberMeParameter("remember-me")
-                        .tokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(21))
+                        .tokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(21))
                         .key("somethingverysecured"))
                 .logout((logout) -> logout
                         .logoutUrl("/logout")
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout","GET")) //the line has to be removed when CSRF is enabled.
+                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET")) //the line has to be removed when CSRF is enabled.
                         .clearAuthentication(true)
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID", "remember-me")
@@ -81,7 +79,7 @@ public class ApplicationSecurityConfig {
         return http.build();
     }
 
-    @Bean
+/*    @Bean
     protected UserDetailsService userDetailsService() {
         UserDetails user = User.builder()
                 .username("user")
@@ -108,6 +106,16 @@ public class ApplicationSecurityConfig {
                 user,
                 admin,
                 adminTrainee);
+    }*/
+
+
+
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setUserDetailsService(applicationUserService);
+        return provider;
     }
 
 }
