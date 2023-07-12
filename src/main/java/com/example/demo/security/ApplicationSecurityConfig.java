@@ -1,22 +1,26 @@
 package com.example.demo.security;
 
 import com.example.demo.auth.ApplicationUserService;
+import com.example.demo.jwt.JwtConfig;
+import com.example.demo.jwt.JwtTokenVerifier;
+import com.example.demo.jwt.JwtUsernameAndPasswordAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
+import java.util.Collections;
 
 import static com.example.demo.security.ApplicationUserPermission.COURSE_WRITE;
 import static com.example.demo.security.ApplicationUserRole.*;
@@ -31,10 +35,18 @@ public class ApplicationSecurityConfig {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationUserService applicationUserService;
 
-    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder, ApplicationUserService applicationUserService) {
+    private final SecretKey secretKey;
+    private final JwtConfig jwtConfig;
+
+
+
+    public ApplicationSecurityConfig(PasswordEncoder passwordEncoder, ApplicationUserService applicationUserService, SecretKey secretKey, JwtConfig jwtConfig) {
         this.passwordEncoder = passwordEncoder;
         this.applicationUserService = applicationUserService;
+        this.secretKey = secretKey;
 
+
+        this.jwtConfig = jwtConfig;
     }
 
     @Bean
@@ -42,6 +54,11 @@ public class ApplicationSecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 //.csrf((csrf) ->csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .addFilter(new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager(), jwtConfig, secretKey))
+                .addFilterAfter(new JwtTokenVerifier(secretKey, jwtConfig), JwtUsernameAndPasswordAuthenticationFilter.class)
                 .authorizeHttpRequests((authz) -> authz
                         //Dispatches FORWARD and ERROR are permitted to allow Spring MVC to render views and Spring Boot to render errors
                         .dispatcherTypeMatchers(FORWARD, ERROR).permitAll()
@@ -54,12 +71,12 @@ public class ApplicationSecurityConfig {
 //                        .requestMatchers("/management/api/**").hasAnyRole(ADMIN.name(), ADMINTRAINEE.name()))
 
                         .anyRequest()
-                        .authenticated())
+                        .authenticated());
 
                 //.httpBasic(Customizer.withDefaults()); //Basic Authentication
                 //Form Based Authentication
 //                .formLogin(Customizer.withDefaults()); //Form Based Authentication default login page
-                .formLogin((form) -> form
+/*                .formLogin((form) -> form
                         .loginPage("/login").permitAll()
                         .defaultSuccessUrl("/courses", true)
                         .passwordParameter("password")
@@ -74,7 +91,11 @@ public class ApplicationSecurityConfig {
                         .clearAuthentication(true)
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID", "remember-me")
-                        .logoutSuccessUrl("/login"));
+                        .logoutSuccessUrl("/login"));*/
+
+        //JWT Authentication
+
+
 
         return http.build();
     }
@@ -108,7 +129,10 @@ public class ApplicationSecurityConfig {
                 adminTrainee);
     }*/
 
-
+    @Bean
+    public AuthenticationManager authenticationManager() throws Exception {
+        return new ProviderManager(Collections.singletonList(daoAuthenticationProvider()));
+    }
 
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider() {
